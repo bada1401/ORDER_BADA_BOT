@@ -1,73 +1,91 @@
-import express from "express";
-import TelegramBot from "node-telegram-bot-api";
+const express = require("express");
+const TelegramBot = require("node-telegram-bot-api");
 
-const TOKEN = "8396386868:AAEAPGXCUp14AGsSW4doC1cVwi8zki3CWT8";
+// === НАСТРОЙКИ ===
+const TOKEN = "8396386868:AAEAPGXCUp14AGsSW4doC1cVwi8zki3CWT8"; // твой токен
+const ADMIN_ID = 928118657; // твой chat_id (ты)
 
-// Only you can add users, обычные юзеры только 2 кнопки
-const admins = [928118657];
-let allowedUsers = [...admins, 1216376532, 8497970505];
+// кто может пользоваться ботом
+const allowedUsers = new Set([
+  ADMIN_ID,
+  8497970505,
+  1216376532
+]);
 
+// создаём бота (long polling)
 const bot = new TelegramBot(TOKEN, { polling: true });
 
-const app = express();
-
-// ————————————————————————
-// Команды Telegram
-// ————————————————————————
-
-bot.on("message", msg => {
+// ====== ОБРАБОТКА СООБЩЕНИЙ ======
+bot.on("message", (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text || "";
 
-  // Добавление юзера — только для админов
-  if (text.startsWith("/add") && admins.includes(chatId)) {
-    const newId = text.split(" ")[1];
-    if (newId) {
-      allowedUsers.push(newId);
-      bot.sendMessage(chatId, `Пользователь ${newId} добавлен!`);
+  // --- админ может добавлять юзеров командой /add 123456789 ---
+  if (text.startsWith("/add")) {
+    if (chatId !== ADMIN_ID) {
+      bot.sendMessage(chatId, "⛔ У тебя нет прав добавлять пользователей.");
+      return;
     }
+
+    const parts = text.split(/\s+/);
+    const newId = Number(parts[1]);
+
+    if (!newId) {
+      bot.sendMessage(chatId, "❗ Напиши так: /add 123456789");
+      return;
+    }
+
+    if (allowedUsers.has(newId)) {
+      bot.sendMessage(chatId, `⚠️ Пользователь ${newId} уже есть в списке.`);
+      return;
+    }
+
+    allowedUsers.add(newId);
+    bot.sendMessage(chatId, `✅ Пользователь добавлен: ${newId}`);
     return;
   }
 
-  // Если юзер не в списке — нет доступа
-  if (!allowedUsers.includes(String(chatId))) {
-    bot.sendMessage(chatId, "❌ У вас нет доступа к боту.");
+  // --- доступ только для разрешённых юзеров ---
+  if (!allowedUsers.has(chatId)) {
+    bot.sendMessage(chatId, "⛔ У тебя нет доступа к боту BADA JR.");
     return;
   }
 
-  // Кнопки меню
-  const options = {
+  // клавиатура с двумя кнопками
+  const keyboard = {
     reply_markup: {
       keyboard: [
         ["🚚 Товары в пути"],
-        ["📦 Получено за неделю"]
+        ["📦 Получено за последнюю неделю"]
       ],
       resize_keyboard: true
     }
   };
 
   if (text === "/start") {
-    bot.sendMessage(chatId, "Выберите действие:", options);
+    bot.sendMessage(chatId, "Выбери действие:", keyboard);
     return;
   }
 
   if (text === "🚚 Товары в пути") {
-    bot.sendMessage(chatId, "Тут будет список товаров в пути.");
+    bot.sendMessage(chatId, "🚚 Здесь будут товары в пути (потом привяжем к Google Sheets).");
     return;
   }
 
-  if (text === "📦 Получено за неделю") {
-    bot.sendMessage(chatId, "Тут будет список полученных товаров.");
+  if (text === "📦 Получено за последнюю неделю") {
+    bot.sendMessage(chatId, "📦 Здесь будут товары, полученные за последнюю неделю.");
     return;
   }
 });
 
-// Express endpoint
+// ====== СЕРВЕР ДЛЯ RENDER ======
+const app = express();
+
 app.get("/", (req, res) => {
-  res.send("BADAJR BOT RUNNING");
+  res.send("BADA JR BOT работает ✅");
 });
 
-// Render требует порт в процессе
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Server is running on port", PORT);
 });
