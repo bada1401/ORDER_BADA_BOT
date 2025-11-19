@@ -1,8 +1,7 @@
 {
-  "name": "superbot",
+  "name": "ORDER_BADA_BOT",
   "version": "1.0.0",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
@@ -14,3 +13,4 @@
     "node-telegram-bot-api": "^0.61.0"
   }
 }
+
