@@ -1,15 +1,15 @@
 {
-  "name": "ORDER_BADA_BOT",
+  "name": "order_bada_bot",
   "version": "1.0.0",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
-  "engines": {
-    "node": "18.x"
-  },
   "dependencies": {
     "express": "^4.18.2",
-    "node-telegram-bot-api": "^0.61.0"
+    "node-fetch": "^3.3.2",
+    "node-telegram-bot-api": "^0.61.0",
+    "dotenv": "^16.3.1"
   }
 }
