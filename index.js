@@ -5,21 +5,14 @@ import fetch from "node-fetch";
 const TOKEN = process.env.BOT_TOKEN;
 const SCRIPT_URL = process.env.SCRIPT_URL;
 
-if (!TOKEN) {
-  console.error("❌ ERROR: BOT_TOKEN not found");
-}
-if (!SCRIPT_URL) {
-  console.error("❌ ERROR: SCRIPT_URL not found");
-}
+console.log("BOT TOKEN:", TOKEN ? "OK" : "EMPTY");
+console.log("SCRIPT URL:", SCRIPT_URL);
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 const app = express();
-app.use(express.json());
 
-// =============================================
-// Кнопки
-// =============================================
-const keyboard = {
+// КНОПКИ
+const mainKeyboard = {
   reply_markup: {
     keyboard: [
       ["🚚 Товары в пути"],
@@ -29,45 +22,46 @@ const keyboard = {
   }
 };
 
-// =============================================
-// Обработка сообщений
-// =============================================
+// КОМАНДЫ
 bot.on("message", async msg => {
   const chatId = msg.chat.id;
   const text = (msg.text || "").toLowerCase();
 
   if (text === "/start") {
-    return bot.sendMessage(chatId, "👋 Добро пожаловать!", keyboard);
+    return bot.sendMessage(chatId, "Выберите действие:", mainKeyboard);
   }
 
-  if (text.includes("товары в пути")) {
+  // ТОВАРЫ В ПУТИ
+  if (text.includes("товары") && text.includes("пути")) {
     const url = `${SCRIPT_URL}?action=inTransit&chat_id=${chatId}`;
-    const res = await fetch(url).then(r => r.text());
-    return bot.sendMessage(chatId, res, { parse_mode: "Markdown" });
+    const response = await fetch(url);
+    const data = await response.text();
+    return bot.sendMessage(chatId, data, { parse_mode: "Markdown" });
   }
 
-  if (text.includes("получено за неделю")) {
+  // ПОЛУЧЕНО ЗА НЕДЕЛЮ
+  if (text.includes("неделю") || text.includes("неделя")) {
     const url = `${SCRIPT_URL}?action=receivedWeek&chat_id=${chatId}`;
-    const res = await fetch(url).then(r => r.text());
-    return bot.sendMessage(chatId, res, { parse_mode: "Markdown" });
+    const response = await fetch(url);
+    const data = await response.text();
+    return bot.sendMessage(chatId, data, { parse_mode: "Markdown" });
   }
 
+  // ДОБАВИТЬ ПОЛЬЗОВАТЕЛЯ
   if (text.startsWith("/add")) {
     const id = text.split(" ")[1];
-    if (!id) return bot.sendMessage(chatId, "❗ Формат: /add 123456789");
-
+    if (!id) return bot.sendMessage(chatId, "❗ Формат: /add 123456");
     const url = `${SCRIPT_URL}?action=addUser&id=${id}`;
-    const res = await fetch(url).then(r => r.text());
-    return bot.sendMessage(chatId, res);
+    const response = await fetch(url);
+    return bot.sendMessage(chatId, await response.text());
   }
 
-  return bot.sendMessage(chatId, "Выберите действие:", keyboard);
+  return bot.sendMessage(chatId, "Выберите действие:", mainKeyboard);
 });
 
-// =============================================
-// Render server
-// =============================================
-app.get("/", (req, res) => res.send("BOT IS RUNNING"));
+// RENDER SERVER
+app.get("/", (_, res) => res.send("BOT IS RUNNING"));
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server started:", PORT));
+app.listen(process.env.PORT || 10000, () =>
+  console.log("Server ready")
+);
