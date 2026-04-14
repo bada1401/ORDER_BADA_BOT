@@ -22,7 +22,6 @@ const mainKeyboard = {
     resize_keyboard: true
   }
 };
-
 async function sendTrendingProducts(chatId) {
   const products = await getTrendingProducts();
 
@@ -30,24 +29,37 @@ async function sendTrendingProducts(chatId) {
     return bot.sendMessage(chatId, "Пока новинок не найдено.", mainKeyboard);
   }
 
-  let msg = "🔥 *5 новинок*\n\n";
+  await bot.sendMessage(chatId, "🔥 5 новинок", mainKeyboard);
 
-  products.slice(0, 5).forEach((p, i) => {
-    msg += `*${i + 1}. ${p.title}*\n`;
-    msg += `Источник: ${p.source}\n`;
-    msg += `Продажа: ${p.salePrice} ₽\n`;
-    msg += `Закупка: ${p.buyPrice} ₽\n`;
-    msg += `Маржа: ${p.margin}\n`;
-    msg += `Конкуренция: ${p.competition}\n\n`;
+  for (const [index, p] of products.slice(0, 5).entries()) {
+    let caption = `*${index + 1}. ${p.title}*\n`;
+    caption += `Источник: ${p.source}\n`;
+    caption += `Продажа: ${p.salePrice} ₽\n`;
+    caption += `Закупка: ${p.buyPrice} ₽\n`;
+    caption += `Маржа: ${p.margin}\n`;
+    caption += `Конкуренция: ${p.competition}\n\n`;
 
     if (p.why?.length) {
-      msg += `*Почему предлагаем:*\n• ${p.why.join("\n• ")}\n\n`;
+      caption += `*Почему предлагаем:*\n• ${p.why.join("\n• ")}\n\n`;
     }
 
     if (p.basis?.length) {
-      msg += `*Основание выбора:*\n• ${p.basis.join("\n• ")}\n\n`;
+      caption += `*Основание выбора:*\n• ${p.basis.join("\n• ")}\n`;
     }
-  });
+
+    if (p.imageUrl) {
+      await bot.sendPhoto(chatId, p.imageUrl, {
+        caption,
+        parse_mode: "Markdown"
+      });
+    } else {
+      await bot.sendMessage(chatId, caption, {
+        parse_mode: "Markdown"
+      });
+    }
+  }
+}
+
 
   return bot.sendMessage(chatId, msg, {
     parse_mode: "Markdown",
