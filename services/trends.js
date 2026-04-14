@@ -52,3 +52,29 @@ export async function getTrendingProducts() {
     }
   ];
 }
+export async function getTrendingProducts() {
+  return [
+    {
+      title: "Мини-органайзер для кабелей",
+      source: "TikTok",
+      salePrice: 990,
+      buyPrice: 240,
+      margin: "высокая",
+      competition: "средняя",
+      imageUrl: "https://example.com/product1.jpg",
+      why: ["маленький товар", "высокая маржа"],
+      basis: ["тренд TikTok", "подходит под WB"]
+    },
+    {
+      title: "Складной держатель телефона",
+      source: "Ozon",
+      salePrice: 890,
+      buyPrice: 210,
+      margin: "высокая",
+      competition: "ниже средней",
+      imageUrl: "https://example.com/product2.jpg",
+      why: ["лёгкий товар", "импульсная покупка"],
+      basis: ["низкая конкуренция", "быстрый тест"]
+    }
+  ];
+}
