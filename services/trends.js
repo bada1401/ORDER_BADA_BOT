@@ -39,7 +39,9 @@ function detectSmallSize(title, category) {
     "stickers",
     "perfume",
     "lip gloss",
-    "lipstick"
+    "lipstick",
+    "cleaners",
+    "phone accessories"
   ];
 
   return smallKeywords.some((k) => text.includes(k));
@@ -52,7 +54,7 @@ function estimateBuyPriceRub(title, category) {
   if (text.includes("case")) return 220;
   if (text.includes("screen protectors")) return 210;
   if (text.includes("lipstick")) return 280;
-  if (text.includes("household cleaners")) return 260;
+  if (text.includes("cleaners")) return 260;
   if (text.includes("crossbody")) return 420;
   if (text.includes("organizer")) return 290;
   if (text.includes("brush")) return 240;
@@ -68,7 +70,7 @@ function estimateSalePriceRub(title, category) {
   if (text.includes("case")) return 790;
   if (text.includes("screen protectors")) return 690;
   if (text.includes("lipstick")) return 990;
-  if (text.includes("household cleaners")) return 890;
+  if (text.includes("cleaners")) return 890;
   if (text.includes("crossbody")) return 1490;
   if (text.includes("organizer")) return 1090;
   if (text.includes("brush")) return 850;
@@ -110,9 +112,9 @@ function buildWhyAndBasis(product) {
     basis.push("в TikTok есть заметная популярность товара");
   }
 
-  if (product.popularityChange >= 0) {
+  if (product.popularityChange >= -3) {
     why.push("товар не в резком падении");
-    basis.push("динамика популярности не отрицательная или близка к нулю");
+    basis.push("динамика популярности не сильно отрицательная");
   }
 
   if (product.ctr >= 2) {
@@ -121,8 +123,8 @@ function buildWhyAndBasis(product) {
   }
 
   if (product.cvr >= 4) {
-    why.push("у товара есть сигнал конверсии");
-    basis.push("CVR показывает реальный интерес, а не только просмотры");
+    why.push("есть сигнал конверсии");
+    basis.push("CVR показывает не только просмотры, но и интерес");
   }
 
   if (product.impressions >= 10000000) {
@@ -166,22 +168,17 @@ async function fetchTikTokTopProducts() {
   const $ = cheerio.load(html);
   const bodyText = $("body").text().replace(/\s+/g, " ").trim();
 
-  // Берём только часть после заголовка страницы
   const startMarker = "Explore Top Products on TikTok";
   const startIndex = bodyText.indexOf(startMarker);
   const relevantText = startIndex >= 0 ? bodyText.slice(startIndex) : bodyText;
 
-  // Очень упрощённый парсер по публичному тексту страницы
-  // Ищем блоки "Title ... Category ... metrics ... Details"
   const detailChunks = relevantText.split("Details");
-
   const products = [];
 
   for (const chunk of detailChunks) {
     const text = chunk.trim();
     if (!text) continue;
 
-    // Название — первая фраза перед категорией с /
     const categoryMatch = text.match(/([A-Za-z&,' -]+\/[A-Za-z&,' -/]+)/);
     if (!categoryMatch) continue;
 
@@ -202,7 +199,6 @@ async function fetchTikTokTopProducts() {
     const costUsd = parseFloat((usdMatches[0] || "0").replace(/[^\d.]/g, "")) || 0;
     const impressions = parseCompactNumber(kMatches[kMatches.length - 1] || "0");
 
-    const imageUrl = null; // у публичной страницы картинки в DOM неудобны; пока без них
     const size = detectSmallSize(title, category) ? "small" : "other";
     const buyPrice = estimateBuyPriceRub(title, category);
     const salePrice = estimateSalePriceRub(title, category);
@@ -218,7 +214,7 @@ async function fetchTikTokTopProducts() {
       margin,
       competition,
       size,
-      imageUrl,
+      imageUrl: null,
       popularity,
       popularityChange,
       ctr,
@@ -242,7 +238,6 @@ async function fetchTikTokTopProducts() {
     });
   }
 
-  // Убираем мусор, оставляем только похожее на мелкие товары
   return products.filter((p) => {
     return (
       p.title &&
@@ -371,36 +366,9 @@ export async function getTrendingProducts({ shownKeys, limit = 5 } = {}) {
   try {
     products = await fetchTikTokTopProducts();
 
-    // если парсер не упал, но ничего не нашёл —
-    // всё равно включаем fallback
     if (!products || !products.length) {
       products = fallbackProducts();
     }
-  } catch (error) {
-    console.error("TikTok parser failed, fallback used:", error.message);
-    products = fallbackProducts();
-  }
-
-  let fresh = products;
-
-  if (shownKeys && shownKeys.size) {
-    fresh = products.filter((product) => !shownKeys.has(product.key));
-  }
-
-  if (fresh.length < limit) {
-    fresh = products;
-  }
-
-  fresh.sort((a, b) => b.score - a.score);
-
-  const mixed = shuffle(fresh.slice(0, 12)).sort((a, b) => b.score - a.score);
-
-  return mixed.slice(0, limit);
-}
-  let products = [];
-
-  try {
-    products = await fetchTikTokTopProducts();
   } catch (error) {
     console.error("TikTok parser failed, fallback used:", error.message);
     products = fallbackProducts();
