@@ -1,6 +1,13 @@
 import express from "express";
 import TelegramBot from "node-telegram-bot-api";
 import fetch from "node-fetch";
+
+import {
+  getShownKeys,
+  saveShownProducts,
+  resetShownProducts
+} from "./services/history.js";
+
 import { getTrendingProducts } from "./services/trends.js";
 
 const TOKEN = process.env.BOT_TOKEN;
@@ -15,40 +22,66 @@ const app = express();
 const mainKeyboard = {
   reply_markup: {
     keyboard: [
-      ["🔥 5 новинок"],
+      ["🔥 5 новинок", "🔄 Ещё 5 новинок"],
       ["🚚 Товары в пути"],
       ["📦 Получено за неделю"]
     ],
     resize_keyboard: true
   }
 };
+
+function formatCaption(product, index) {
+  let caption = `*${index + 1}. ${product.title}*\n`;
+  caption += `Источник: ${product.source}\n`;
+  caption += `Продажа: ${product.salePrice} ₽\n`;
+  caption += `Закупка: ${product.buyPrice} ₽\n`;
+  caption += `Маржа: ${product.margin}\n`;
+  caption += `Конкуренция: ${product.competition}\n\n`;
+
+  if (product.why?.length) {
+    caption += `*Почему предлагаем:*\n• ${product.why.join("\n• ")}\n\n`;
+  }
+
+  if (product.basis?.length) {
+    caption += `*Основание выбора:*\n• ${product.basis.join("\n• ")}\n`;
+  }
+
+  return caption;
+}
+
 async function sendTrendingProducts(chatId) {
-  const products = await getTrendingProducts();
+  const shownKeys = getShownKeys(chatId);
+
+  const products = await getTrendingProducts({
+    shownKeys,
+    limit: 5
+  });
 
   if (!products || !products.length) {
     return bot.sendMessage(chatId, "Пока новинок не найдено.", mainKeyboard);
   }
 
-  await bot.sendMessage(chatId, "🔥 5 новинок", mainKeyboard);
+  saveShownProducts(chatId, products);
 
-  for (const [index, p] of products.slice(0, 5).entries()) {
-    let caption = `*${index + 1}. ${p.title}*\n`;
-    caption += `Источник: ${p.source}\n`;
-    caption += `Продажа: ${p.salePrice} ₽\n`;
-    caption += `Закупка: ${p.buyPrice} ₽\n`;
-    caption += `Маржа: ${p.margin}\n`;
-    caption += `Конкуренция: ${p.competition}\n\n`;
-
-    if (p.why?.length) {
-      caption += `*Почему предлагаем:*\n• ${p.why.join("\n• ")}\n\n`;
+  await bot.sendMessage(
+    chatId,
+    "*🔥 5 новинок*\n\nПодборка по фильтру:\n• маленький размер\n• закупка 200–500 ₽\n• высокая маржа\n• анти-повтор включён",
+    {
+      parse_mode: "Markdown",
+      ...mainKeyboard
     }
+  );
 
-    if (p.basis?.length) {
-      caption += `*Основание выбора:*\n• ${p.basis.join("\n• ")}\n`;
-    }
+  for (const [index, product] of products.entries()) {
+    const caption = formatCaption(product, index);
 
-    if (p.imageUrl) {
-      await bot.sendPhoto(chatId, p.imageUrl, {
+    if (product.videoUrl) {
+      await bot.sendVideo(chatId, product.videoUrl, {
+        caption,
+        parse_mode: "Markdown"
+      });
+    } else if (product.imageUrl) {
+      await bot.sendPhoto(chatId, product.imageUrl, {
         caption,
         parse_mode: "Markdown"
       });
@@ -60,13 +93,6 @@ async function sendTrendingProducts(chatId) {
   }
 }
 
-
-  return bot.sendMessage(chatId, msg, {
-    parse_mode: "Markdown",
-    ...mainKeyboard
-  });
-}
-
 bot.on("message", async (msg) => {
   try {
     const chatId = msg.chat.id;
@@ -76,7 +102,17 @@ bot.on("message", async (msg) => {
       return bot.sendMessage(chatId, "Выберите действие:", mainKeyboard);
     }
 
-    if (text.includes("новинок") || text.includes("новинки")) {
+    if (text === "/resetnovelty") {
+      resetShownProducts(chatId);
+      return bot.sendMessage(chatId, "История новинок очищена.", mainKeyboard);
+    }
+
+    if (
+      text.includes("5 новинок") ||
+      text.includes("новинок") ||
+      text.includes("новинки") ||
+      text.includes("ещё 5")
+    ) {
       return sendTrendingProducts(chatId);
     }
 
