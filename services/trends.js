@@ -370,6 +370,37 @@ export async function getTrendingProducts({ shownKeys, limit = 5 } = {}) {
 
   try {
     products = await fetchTikTokTopProducts();
+
+    // если парсер не упал, но ничего не нашёл —
+    // всё равно включаем fallback
+    if (!products || !products.length) {
+      products = fallbackProducts();
+    }
+  } catch (error) {
+    console.error("TikTok parser failed, fallback used:", error.message);
+    products = fallbackProducts();
+  }
+
+  let fresh = products;
+
+  if (shownKeys && shownKeys.size) {
+    fresh = products.filter((product) => !shownKeys.has(product.key));
+  }
+
+  if (fresh.length < limit) {
+    fresh = products;
+  }
+
+  fresh.sort((a, b) => b.score - a.score);
+
+  const mixed = shuffle(fresh.slice(0, 12)).sort((a, b) => b.score - a.score);
+
+  return mixed.slice(0, limit);
+}
+  let products = [];
+
+  try {
+    products = await fetchTikTokTopProducts();
   } catch (error) {
     console.error("TikTok parser failed, fallback used:", error.message);
     products = fallbackProducts();
